@@ -1,0 +1,23 @@
+# Python
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/chroma_db/
+backend/.env
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# Skill & Packages
+*.skill
+pentest-rag-access/scripts/__pycache__/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
