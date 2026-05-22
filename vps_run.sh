@@ -7,14 +7,14 @@ echo "Starting Pentest RAG System in background..."
 BASE_DIR=$(pwd)
 
 # Start Backend with logging
-echo "Starting Backend on port 8000..."
+echo "Starting Backend on port 7744..."
 cd $BASE_DIR/backend
 source venv/bin/activate
 nohup python3 main.py > backend.log 2>&1 &
 echo $! > ../backend.pid
 
 # Start Frontend with logging
-echo "Starting Frontend on port 5173..."
+echo "Starting Frontend on port 7743..."
 cd $BASE_DIR/frontend
 nohup npm run dev -- --host > frontend.log 2>&1 &
 echo $! > ../frontend.pid

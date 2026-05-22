@@ -11,8 +11,8 @@ python3 main.py || python main.py) &
 echo "Starting Frontend..."
 (cd frontend && npm run dev) &
 
-echo "Backend starting on http://localhost:8000"
-echo "Frontend starting on http://localhost:5173"
+echo "Backend starting on http://localhost:7744"
+echo "Frontend starting on http://localhost:7743"
 echo ""
 echo "Press Ctrl+C to stop both services."
 
