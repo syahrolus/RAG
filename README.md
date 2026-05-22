@@ -56,8 +56,5 @@ gemini skills install pentest-rag-access.skill --scope workspace
 - `CLAUDE.md`: Instructions for Claude Code.
 - `GEMINI.md`: Instructions for Gemini CLI.
 
-## 🔒 Privacy & Security
-Everything is stored locally in `backend/chroma_db/`. This folder is ignored by `.gitignore` to ensure your sensitive pentest findings are never accidentally pushed to GitHub.
-
 ---
 *Built for pentesters who want a local "Second Brain".*
