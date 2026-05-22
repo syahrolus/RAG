@@ -62,8 +62,8 @@ async def query_knowledge(request: QueryRequest):
         # Search for relevant chunks
         results = vectorstore.similarity_search(request.prompt, k=request.top_k)
         
-        # Combine chunks for context
-        context = "\n\n".join([doc.page_content for doc in results])
+        # Combine chunks for context with a unique separator
+        context = "\n---CHUNK---\n".join([doc.page_content for doc in results])
         sources = [doc.metadata.get("source", "unknown") for doc in results]
         
         # In a real RAG, we'd send this to an LLM. 

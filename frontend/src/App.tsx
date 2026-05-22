@@ -100,7 +100,7 @@ function App() {
               <div className="results">
                 <h3><BookOpen size={18} /> Retrieved Context</h3>
                 <div className="answer">
-                  {results.answer.split('\n\n').map((chunk, i) => (
+                  {results.answer.split('\n---CHUNK---\n').map((chunk, i) => (
                     <div key={i} className="chunk">
                       {chunk}
                     </div>
