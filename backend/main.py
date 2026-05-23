@@ -46,13 +46,79 @@ async def add_knowledge(item: KnowledgeItem):
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         chunks = text_splitter.split_text(item.content)
         
+        # Generate a shared ID for all chunks of the same entry to make deletion easier
+        entry_id = str(uuid.uuid4())
+        
         docs = [
-            Document(page_content=chunk, metadata=item.metadata or {"source": "manual_entry"})
+            Document(
+                page_content=chunk, 
+                metadata={**(item.metadata or {}), "source": item.metadata.get("source", "manual_entry"), "entry_id": entry_id}
+            )
             for chunk in chunks
         ]
         
         vectorstore.add_documents(docs)
-        return {"message": f"Added {len(docs)} chunks to knowledge base."}
+        return {"message": f"Added {len(docs)} chunks to knowledge base.", "entry_id": entry_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/list_knowledge")
+async def list_knowledge():
+    try:
+        # Chroma doesn't have a simple 'list all' with unique entries easily
+        # We'll get all documents and group them by entry_id
+        results = vectorstore.get()
+        
+        # Organise by entry_id
+        entries = {}
+        for i, metadata in enumerate(results['metadatas']):
+            eid = metadata.get('entry_id', 'legacy')
+            content = results['documents'][i]
+            
+            if eid not in entries:
+                entries[eid] = {
+                    "id": eid,
+                    "content": content,
+                    "source": metadata.get('source', 'unknown'),
+                    "chunks": 1
+                }
+            else:
+                # Append content if it's a multi-chunk entry
+                entries[eid]["content"] += "\n" + content
+                entries[eid]["chunks"] += 1
+                
+        return list(entries.values())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/delete_knowledge/{entry_id}")
+async def delete_knowledge(entry_id: str):
+    try:
+        # Delete all documents matching the entry_id in metadata
+        vectorstore.delete(where={"entry_id": entry_id})
+        return {"message": f"Deleted entry {entry_id}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/update_knowledge/{entry_id}")
+async def update_knowledge(entry_id: str, item: KnowledgeItem):
+    try:
+        # Easiest way to update in RAG: Delete and Re-add
+        vectorstore.delete(where={"entry_id": entry_id})
+        
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        chunks = text_splitter.split_text(item.content)
+        
+        docs = [
+            Document(
+                page_content=chunk, 
+                metadata={**(item.metadata or {}), "source": item.metadata.get("source", "manual_entry"), "entry_id": entry_id}
+            )
+            for chunk in chunks
+        ]
+        
+        vectorstore.add_documents(docs)
+        return {"message": f"Updated entry {entry_id}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
