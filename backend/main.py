@@ -146,6 +146,29 @@ async def query_knowledge(request: QueryRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/export_knowledge")
+async def export_knowledge():
+    try:
+        results = vectorstore.get()
+        entries = {}
+        for i, metadata in enumerate(results['metadatas']):
+            eid = metadata.get('entry_id', 'legacy')
+            content = results['documents'][i]
+            
+            if eid not in entries:
+                entries[eid] = {
+                    "content": content,
+                    "metadata": {
+                        "source": metadata.get('source', 'unknown')
+                    }
+                }
+            else:
+                entries[eid]["content"] += "\n" + content
+                
+        return list(entries.values())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/health")
 async def health():
     return {"status": "ok"}

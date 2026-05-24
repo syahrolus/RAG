@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { Search, PlusCircle, Database, BookOpen, Loader2, Trash2, Edit, Save, X, List, Upload } from 'lucide-react';
+import { Search, PlusCircle, Database, BookOpen, Loader2, Trash2, Edit, Save, X, List, Upload, Download, FileJson } from 'lucide-react';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:7744`;
@@ -26,6 +26,7 @@ function App() {
   const [editContent, setEditContent] = useState('');
   const [editSource, setEditSource] = useState('');
   const [bulkData, setBulkData] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchEntries = async () => {
     try {
@@ -62,19 +63,25 @@ function App() {
     }
   };
 
-  const handleBulkUpload = async () => {
-    if (!bulkData) return;
+  const handleBulkUpload = async (dataToProcess?: any) => {
+    const data = dataToProcess || bulkData;
+    if (!data) return;
     setAdding(true);
     try {
       let items;
-      try {
-        items = JSON.parse(bulkData);
+      if (typeof data === 'string') {
+        try {
+          items = JSON.parse(data);
+          if (!Array.isArray(items)) items = [items];
+        } catch (e) {
+          items = data.split('\n\n\n').filter(s => s.trim()).map(s => ({
+            content: s.trim(),
+            metadata: { source: 'bulk_import' }
+          }));
+        }
+      } else {
+        items = data;
         if (!Array.isArray(items)) items = [items];
-      } catch (e) {
-        items = bulkData.split('\n\n\n').filter(s => s.trim()).map(s => ({
-          content: s.trim(),
-          metadata: { source: 'bulk_import' }
-        }));
       }
 
       const response = await axios.post(`${API_BASE_URL}/add_knowledge_bulk`, items);
@@ -86,6 +93,41 @@ function App() {
       setMessage('Bulk upload failed. Check format.');
     } finally {
       setAdding(false);
+    }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      try {
+        const json = JSON.parse(content);
+        handleBulkUpload(json);
+      } catch (err) {
+        setMessage('Invalid JSON file.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleExport = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/export_knowledge`);
+      const dataStr = JSON.stringify(response.data, null, 2);
+      const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+      
+      const exportFileDefaultName = `pentest_knowledge_export_${new Date().toISOString().split('T')[0]}.json`;
+      
+      const linkElement = document.createElement('a');
+      linkElement.setAttribute('href', dataUri);
+      linkElement.setAttribute('download', exportFileDefaultName);
+      linkElement.click();
+    } catch (error) {
+      console.error('Error exporting knowledge:', error);
+      setMessage('Export failed.');
     }
   };
 
@@ -149,7 +191,7 @@ function App() {
             <List size={18} /> Manage
           </button>
           <button className={view === 'bulk' ? 'active' : ''} onClick={() => setView('bulk')}>
-            <Upload size={18} /> Bulk Upload
+            <Upload size={18} /> Import
           </button>
         </div>
       </header>
@@ -215,7 +257,12 @@ function App() {
         ) : view === 'manage' ? (
           <section className="manage-section">
             <div className="card full-width">
-              <h2><List size={20} /> Database Entries ({entries.length})</h2>
+              <div className="card-header-actions">
+                <h2><List size={20} /> Database Entries ({entries.length})</h2>
+                <button className="btn-secondary" onClick={handleExport}>
+                  <Download size={18} /> Export JSON
+                </button>
+              </div>
               <div className="entry-list">
                 {entries.length === 0 ? (
                   <p>No entries found in database.</p>
@@ -268,7 +315,21 @@ function App() {
         ) : (
           <section className="bulk-section">
             <div className="card full-width">
-              <h2><Upload size={20} /> Bulk Knowledge Upload</h2>
+              <div className="card-header-actions">
+                <h2><Upload size={20} /> Bulk Knowledge Import</h2>
+                <div className="file-upload-wrapper">
+                  <input 
+                    type="file" 
+                    accept=".json" 
+                    ref={fileInputRef} 
+                    onChange={handleFileUpload} 
+                    style={{ display: 'none' }} 
+                  />
+                  <button className="btn-secondary" onClick={() => fileInputRef.current?.click()}>
+                    <FileJson size={18} /> Upload JSON File
+                  </button>
+                </div>
+              </div>
               <p className="hint">
                 Paste a JSON array of objects <code>{JSON.stringify({"content": "...", "metadata": {"source": "..."}})}</code> 
                 or separate raw text entries with <strong>three newlines (ENTER ENTER ENTER)</strong>.
@@ -280,8 +341,8 @@ function App() {
                 onChange={(e) => setBulkData(e.target.value)}
                 style={{ minHeight: '300px', fontFamily: 'monospace' }}
               />
-              <button onClick={handleBulkUpload} disabled={adding || !bulkData}>
-                {adding ? <Loader2 className="spin" size={18} /> : 'Process Bulk Upload'}
+              <button onClick={() => handleBulkUpload()} disabled={adding || !bulkData}>
+                {adding ? <Loader2 className="spin" size={18} /> : 'Process Bulk Text'}
               </button>
               {message && <p className="status-message">{message}</p>}
             </div>

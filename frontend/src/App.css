@@ -271,9 +271,24 @@ button:disabled {
   color: var(--primary);
 }
 
-.btn-icon.delete:hover {
-  border-color: #ef4444;
-  color: #ef4444;
+.card-header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.btn-secondary {
+  background-color: #f1f5f9;
+  color: #475569;
+  border: 1px solid var(--border);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #e2e8f0;
+  color: var(--text);
 }
 
 /* Edit Form */
