@@ -297,6 +297,21 @@ button:disabled {
   background-color: var(--success);
 }
 
-.btn-cancel {
-  background-color: var(--text-light);
+.hint {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin-bottom: 0.5rem;
+}
+
+.hint code {
+  background: #f1f5f9;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
+.bulk-textarea {
+  min-height: 300px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.85rem;
+  line-height: 1.4;
 }

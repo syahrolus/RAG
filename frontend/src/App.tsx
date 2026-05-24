@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, PlusCircle, Database, BookOpen, Loader2, Trash2, Edit, Save, X, List } from 'lucide-react';
+import { Search, PlusCircle, Database, BookOpen, Loader2, Trash2, Edit, Save, X, List, Upload } from 'lucide-react';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:7744`;
@@ -20,11 +20,12 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
   const [message, setMessage] = useState('');
-  const [view, setView] = useState<'search' | 'manage'>('search');
+  const [view, setView] = useState<'search' | 'manage' | 'bulk'>('search');
   const [entries, setEntries] = useState<Entry[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [editSource, setEditSource] = useState('');
+  const [bulkData, setBulkData] = useState('');
 
   const fetchEntries = async () => {
     try {
@@ -45,10 +46,10 @@ function App() {
     if (!knowledge) return;
     setAdding(true);
     try {
-      await axios.post(`${API_BASE_URL}/add_knowledge`, {
+      await axios.post(`${API_BASE_URL}/add_knowledge_bulk`, [{
         content: knowledge,
         metadata: { source: source || 'manual_entry' }
-      });
+      }]);
       setMessage('Knowledge added successfully!');
       setKnowledge('');
       setSource('');
@@ -56,6 +57,33 @@ function App() {
     } catch (error) {
       console.error('Error adding knowledge:', error);
       setMessage('Failed to add knowledge.');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleBulkUpload = async () => {
+    if (!bulkData) return;
+    setAdding(true);
+    try {
+      let items;
+      try {
+        items = JSON.parse(bulkData);
+        if (!Array.isArray(items)) items = [items];
+      } catch (e) {
+        items = bulkData.split('\n\n\n').filter(s => s.trim()).map(s => ({
+          content: s.trim(),
+          metadata: { source: 'bulk_import' }
+        }));
+      }
+
+      const response = await axios.post(`${API_BASE_URL}/add_knowledge_bulk`, items);
+      setMessage(response.data.message);
+      setBulkData('');
+      setTimeout(() => setMessage(''), 5000);
+    } catch (error) {
+      console.error('Error in bulk upload:', error);
+      setMessage('Bulk upload failed. Check format.');
     } finally {
       setAdding(false);
     }
@@ -118,7 +146,10 @@ function App() {
             <Search size={18} /> Search & Add
           </button>
           <button className={view === 'manage' ? 'active' : ''} onClick={() => setView('manage')}>
-            <List size={18} /> Manage Database
+            <List size={18} /> Manage
+          </button>
+          <button className={view === 'bulk' ? 'active' : ''} onClick={() => setView('bulk')}>
+            <Upload size={18} /> Bulk Upload
           </button>
         </div>
       </header>
@@ -181,7 +212,7 @@ function App() {
               </div>
             </section>
           </>
-        ) : (
+        ) : view === 'manage' ? (
           <section className="manage-section">
             <div className="card full-width">
               <h2><List size={20} /> Database Entries ({entries.length})</h2>
@@ -232,6 +263,27 @@ function App() {
                   ))
                 )}
               </div>
+            </div>
+          </section>
+        ) : (
+          <section className="bulk-section">
+            <div className="card full-width">
+              <h2><Upload size={20} /> Bulk Knowledge Upload</h2>
+              <p className="hint">
+                Paste a JSON array of objects <code>{JSON.stringify({"content": "...", "metadata": {"source": "..."}})}</code> 
+                or separate raw text entries with <strong>three newlines (ENTER ENTER ENTER)</strong>.
+              </p>
+              <textarea
+                className="bulk-textarea"
+                placeholder='[{"content": "Nmap scan...", "metadata": {"source": "Nmap"}}, ...]'
+                value={bulkData}
+                onChange={(e) => setBulkData(e.target.value)}
+                style={{ minHeight: '300px', fontFamily: 'monospace' }}
+              />
+              <button onClick={handleBulkUpload} disabled={adding || !bulkData}>
+                {adding ? <Loader2 className="spin" size={18} /> : 'Process Bulk Upload'}
+              </button>
+              {message && <p className="status-message">{message}</p>}
             </div>
           </section>
         )}

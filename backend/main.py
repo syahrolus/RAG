@@ -40,25 +40,26 @@ class KnowledgeItem(BaseModel):
     content: str
     metadata: Optional[dict] = None
 
-@app.post("/add_knowledge")
-async def add_knowledge(item: KnowledgeItem):
+@app.post("/add_knowledge_bulk")
+async def add_knowledge_bulk(items: List[KnowledgeItem]):
     try:
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        chunks = text_splitter.split_text(item.content)
+        all_docs = []
+        for item in items:
+            text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+            chunks = text_splitter.split_text(item.content)
+            entry_id = str(uuid.uuid4())
+            
+            docs = [
+                Document(
+                    page_content=chunk, 
+                    metadata={**(item.metadata or {}), "source": item.metadata.get("source", "manual_entry"), "entry_id": entry_id}
+                )
+                for chunk in chunks
+            ]
+            all_docs.extend(docs)
         
-        # Generate a shared ID for all chunks of the same entry to make deletion easier
-        entry_id = str(uuid.uuid4())
-        
-        docs = [
-            Document(
-                page_content=chunk, 
-                metadata={**(item.metadata or {}), "source": item.metadata.get("source", "manual_entry"), "entry_id": entry_id}
-            )
-            for chunk in chunks
-        ]
-        
-        vectorstore.add_documents(docs)
-        return {"message": f"Added {len(docs)} chunks to knowledge base.", "entry_id": entry_id}
+        vectorstore.add_documents(all_docs)
+        return {"message": f"Added {len(items)} items ({len(all_docs)} chunks) to knowledge base."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
